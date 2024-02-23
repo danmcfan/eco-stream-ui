@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eco-stream-ui
+  labels:
+    app: eco-stream-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eco-stream-ui
+  template:
+    metadata:
+      labels:
+        app: eco-stream-ui
+    spec:
+      containers:
+      - name: eco-stream
+        image: ghcr.io/danmcfan/eco-stream-ui:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: PUBLIC_API_URL
+          value: "http://172.233.135.177"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eco-stream-ui
+spec:
+  selector:
+    app: eco-stream-ui
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer

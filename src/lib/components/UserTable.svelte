@@ -1,7 +1,8 @@
 <script lang="ts">
+    import { env } from "$env/dynamic/public";
     import { onMount } from "svelte";
 
-    const apiUrl = import.meta.env.VITE_API_URL;
+    const apiUrl = env.PUBLIC_API_URL;
 
     type User = {
         id: string;
