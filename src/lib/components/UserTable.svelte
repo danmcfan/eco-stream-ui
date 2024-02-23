@@ -4,90 +4,102 @@
 
     const apiUrl = env.PUBLIC_API_URL;
 
-    type User = {
+    type Item = {
         id: string;
-        username: string;
-        isActive: boolean;
+        name: string;
+        count: number;
     };
 
-    let users: User[] = [];
+    export let token = "";
+
+    let items: Item[] = [];
     let isLoading = true;
-    let username = "";
+
+    let name = "";
 
     let editID: string | null = null;
-    let editUsername = "";
-    let editIsActive = false;
+    let editName = "";
+    let editCount = 0;
 
-    async function fetchUsers() {
-        const res = await fetch(`${apiUrl}/users/`);
-        users = await res.json();
+    async function fetchItems() {
+        const res = await fetch(`${apiUrl}/items/`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        items = await res.json();
         isLoading = false;
     }
 
-    async function editUser(user: User) {
-        editID = user.id;
-        editUsername = user.username;
-        editIsActive = user.isActive;
+    async function editItem(item: Item) {
+        editID = item.id;
+        editName = item.name;
+        editCount = item.count;
     }
 
-    async function updateUser() {
+    async function updateItem() {
         if (editID) {
-            const res = await fetch(`${apiUrl}/users/${editID}`, {
+            const res = await fetch(`${apiUrl}/items/${editID}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    username: editUsername,
-                    isActive: editIsActive,
+                    name: editName,
+                    count: editCount,
                 }),
             });
 
             if (res.ok) {
-                await fetchUsers();
+                await fetchItems();
             } else {
-                alert("Failed to update user");
+                alert("Failed to update item");
             }
         }
 
         editID = null;
-        editUsername = "";
-        editIsActive = false;
+        editName = "";
+        editCount = 0;
     }
 
-    async function deleteUser(id: string) {
-        const res = await fetch(`${apiUrl}/users/${id}`, {
+    async function deleteItem(id: string) {
+        const res = await fetch(`${apiUrl}/items/${id}`, {
             method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
         });
 
         if (res.ok) {
-            await fetchUsers();
+            await fetchItems();
         } else {
-            alert("Failed to delete user");
+            alert("Failed to delete item");
         }
     }
 
-    async function addUser(event: SubmitEvent) {
+    async function addItem(event: SubmitEvent) {
         event.preventDefault();
 
-        const res = await fetch(`${apiUrl}/users/`, {
+        const res = await fetch(`${apiUrl}/items/`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ username }),
+            body: JSON.stringify({ name }),
         });
 
         if (res.ok) {
-            username = "";
-            await fetchUsers();
+            name = "";
+            await fetchItems();
         } else {
-            alert("Failed to add user");
+            alert("Failed to add item");
         }
     }
 
     onMount(async () => {
-        await fetchUsers();
+        await fetchItems();
     });
 </script>
 
@@ -97,43 +109,44 @@
             Loading...
         </p>
     {:else}
-        <h1 class="text-3xl font-bold text-blue-300 mb-4 text-center">Users</h1>
-        {#if users.length === 0}
-            <p class="text-gray-400 text-center">No users found</p>
+        <h1 class="text-3xl font-bold text-blue-300 mb-4 text-center">Items</h1>
+        {#if items.length === 0}
+            <p class="text-gray-400 text-center">No items found</p>
         {:else}
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-gray-200">
                     <thead class="text-gray-400 bg-gray-700">
                         <tr>
                             <th class="px-4 py-2">ID</th>
-                            <th class="px-4 py-2">Username</th>
-                            <th class="px-4 py-2">Active</th>
+                            <th class="px-4 py-2">Name</th>
+                            <th class="px-4 py-2">Count</th>
                             <th class="px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {#each users as user (user.id)}
-                            {#if editID === user.id}
+                        {#each items as item (item.id)}
+                            {#if editID === item.id}
                                 <tr class="border-b border-gray-700">
                                     <td class="px-4 py-2 font-bold"
-                                        >{user.id}</td
+                                        >{item.id}</td
                                     >
                                     <td class="px-4 py-2">
                                         <input
                                             class="px-4 py-2 rounded text-black"
-                                            bind:value={editUsername}
+                                            bind:value={editName}
                                         />
                                     </td>
                                     <td class="px-4 py-2">
                                         <input
-                                            type="checkbox"
-                                            bind:checked={editIsActive}
+                                            type="number"
+                                            class="px-4 py-2 rounded text-black"
+                                            bind:value={editCount}
                                         />
                                     </td>
                                     <td class="px-4 py-2">
                                         <button
                                             class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded"
-                                            on:click={() => updateUser()}
+                                            on:click={() => updateItem()}
                                         >
                                             Save
                                         </button>
@@ -142,26 +155,20 @@
                             {:else}
                                 <tr class="border-b border-gray-700">
                                     <td class="px-4 py-2 font-bold"
-                                        >{user.id}</td
+                                        >{item.id}</td
                                     >
-                                    <td class="px-4 py-2">{user.username}</td>
-                                    <td class="px-4 py-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={user.isActive}
-                                            disabled
-                                        />
-                                    </td>
+                                    <td class="px-4 py-2">{item.name}</td>
+                                    <td class="px-4 py-2">{item.count}</td>
                                     <td class="px-4 py-2">
                                         <button
                                             class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded"
-                                            on:click={() => editUser(user)}
+                                            on:click={() => editItem(item)}
                                         >
                                             Edit
                                         </button>
                                         <button
                                             class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
-                                            on:click={() => deleteUser(user.id)}
+                                            on:click={() => deleteItem(item.id)}
                                         >
                                             Delete
                                         </button>
@@ -174,15 +181,15 @@
             </div>
         {/if}
     {/if}
-    <form class="mt-4 text-center" on:submit={addUser}>
+    <form class="mt-4 text-center" on:submit={addItem}>
         <input
             class="px-4 py-2 rounded"
-            placeholder="Enter username"
-            bind:value={username}
+            placeholder="Enter name"
+            bind:value={name}
         />
         <button
             class="ml-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            type="submit">Add User</button
+            type="submit">Add Item</button
         >
     </form>
 </div>

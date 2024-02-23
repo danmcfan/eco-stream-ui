@@ -1,36 +1,51 @@
 <script lang="ts">
+    import { env } from "$env/dynamic/public";
     import { onMount } from "svelte";
     import { UserTable } from "$lib/components";
 
-    const EXPIRED_MINUTES = 10;
+    const apiUrl = env.PUBLIC_API_URL;
 
+    let token = "";
     let loggedIn = false;
+    let username = "";
     let password = "";
 
-    onMount(() => {
-        const loggedInItem = localStorage.getItem("loggedIn");
-        if (loggedInItem) {
-            const loggedInData = JSON.parse(loggedInItem);
-            const isExpired = new Date().getTime() > loggedInData.expiry;
-            if (!isExpired) {
+    onMount(async () => {
+        const localToken = localStorage.getItem("token");
+        if (localToken) {
+            const res = await fetch(`${apiUrl}/authenticate/`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${localToken}`,
+                },
+            });
+
+            if (res.ok) {
+                token = localToken;
                 loggedIn = true;
             } else {
-                localStorage.removeItem("loggedIn");
+                localStorage.removeItem("token");
             }
         }
     });
 
     async function login() {
-        if (password === "password") {
+        const res = await fetch(`${apiUrl}/login/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username, password }),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem("token", data.token);
+
+            token = data.token;
             loggedIn = true;
-            localStorage.setItem(
-                "loggedIn",
-                JSON.stringify({
-                    expiry: new Date().getTime() + 1000 * 60 * EXPIRED_MINUTES,
-                }),
-            );
         } else {
-            alert("Incorrect password");
+            username = "";
             password = "";
         }
     }
@@ -41,13 +56,19 @@
 </svelte:head>
 
 {#if loggedIn}
-    <UserTable />
+    <UserTable {token} />
 {:else}
     <div class="container mx-auto my-8 p-4 bg-gray-800 rounded-lg">
         <h1 class="text-3xl font-bold text-blue-300 mb-4 text-center">
             Please Log In
         </h1>
         <form class="mt-4 text-center">
+            <input
+                type="text"
+                class="px-4 py-2 rounded"
+                placeholder="Username"
+                bind:value={username}
+            />
             <input
                 type="password"
                 class="px-4 py-2 rounded"
