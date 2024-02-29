@@ -1,46 +1,67 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { pb, loggedIn } from "$lib";
+    import { pb, currentUser } from "$lib";
 
     let username = "";
     let password = "";
-    let errorMessage = "";
 
     async function login() {
-        errorMessage = "";
+        await pb.collection("users").authWithPassword(username, password);
 
+        username = "";
+        password = "";
+    }
+
+    async function signUp() {
         try {
-            await pb.collection("users").authWithPassword(username, password);
-            $loggedIn = true;
-            goto("/");
+            await pb
+                .collection("users")
+                .create({ username, password, passwordConfirm: password });
+            await login();
         } catch (error) {
-            errorMessage = "Failed to log in. Please try again.";
+            console.error(error);
         }
+    }
+
+    function logout() {
+        pb.authStore.clear();
     }
 </script>
 
-<div class="flex flex-col items-center justify-center bg-black">
-    <h1 class="text-3xl font-bold text-green-500 mb-4">Please Log In</h1>
-    <form class="flex flex-col space-y-3" on:submit|preventDefault={login}>
-        <input
-            type="text"
-            placeholder="Username"
-            bind:value={username}
-            class="text-black p-2 rounded"
-        />
-        <input
-            type="password"
-            placeholder="Password"
-            bind:value={password}
-            class="text-black p-2 rounded"
-        />
-        <button
-            type="submit"
-            class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded"
-            >Log in</button
-        >
-    </form>
-    {#if errorMessage}
-        <p class="text-red-500 mt-4">{errorMessage}</p>
+<div class="bg-white shadow-md rounded-lg py-4 px-6">
+    {#if $currentUser}
+        <div class="flex justify-between items-center">
+            <p class="text-blue-600">
+                Signed in as <span class="font-bold"
+                    >{$currentUser.username}</span
+                >
+            </p>
+            <button
+                class="bg-blue-500 text-white rounded-full px-4 py-2 hover:bg-blue-600"
+                on:click={logout}>Logout</button
+            >
+        </div>
+    {:else}
+        <form class="flex space-x-4 items-center" on:submit|preventDefault>
+            <input
+                class="rounded-lg border-2 border-blue-500 py-2 px-4"
+                placeholder="Username"
+                type="text"
+                bind:value={username}
+            />
+            <input
+                class="rounded-lg border-2 border-blue-500 py-2 px-4"
+                placeholder="Password"
+                type="password"
+                bind:value={password}
+            />
+            <button
+                class="bg-blue-500 text-white rounded-full px-4 py-2 hover:bg-blue-600"
+                on:click={login}>Login</button
+            >
+            <button
+                class="bg-blue-500 text-white rounded-full px-4 py-2 hover:bg-blue-600"
+                on:click={signUp}>Sign Up</button
+            >
+        </form>
     {/if}
 </div>

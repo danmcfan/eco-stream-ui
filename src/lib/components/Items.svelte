@@ -1,150 +1,102 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { pb, loggedIn } from "$lib";
+    import { onMount, onDestroy } from "svelte";
+    import { pb, currentUser } from "$lib";
 
-    type Item = {
-        id: string;
-        name: string;
-        count: number;
-    };
-
-    let items: Item[] = [];
-    let isLoading = true;
+    let items: any[] = [];
+    let unsubscribe: () => void;
 
     let name = "";
 
-    let editID: string | null = null;
-    let editName = "";
-    let editCount = 0;
-
-    async function fetchItems() {
-        items = await pb.collection("items").getFullList({
-            sort: "-created",
+    onMount(async () => {
+        const resultList = await pb.collection("items").getList(1, 50, {
+            sort: "created",
+            expand: "user",
         });
-        isLoading = false;
-    }
+        items = resultList.items;
 
-    async function editItem(item: Item) {
-        editID = item.id;
-        editName = item.name;
-        editCount = item.count;
-    }
-
-    async function updateItem() {
-        if (editID) {
-            await pb.collection("items").update(editID, {
-                name: editName,
-                count: editCount,
+        unsubscribe = await pb
+            .collection("items")
+            .subscribe("*", async ({ action, record }) => {
+                if (action === "create") {
+                    // Fetch associated user
+                    const user = await pb
+                        .collection("users")
+                        .getOne(record.user);
+                    record.expand = { user };
+                    items = [...items, record];
+                }
+                if (action === "delete") {
+                    items = items.filter((item) => item.id !== record.id);
+                }
             });
-            await fetchItems();
-        }
+    });
 
-        editID = null;
-        editName = "";
-        editCount = 0;
-    }
+    onDestroy(() => {
+        unsubscribe();
+    });
 
     async function deleteItem(id: string) {
         await pb.collection("items").delete(id);
-        await fetchItems();
     }
 
-    async function addItem() {
-        if (name) {
-            await pb.collection("items").create({
-                name,
-                user: pb.authStore.model?.id,
-            });
-            name = "";
-            await fetchItems();
-        }
+    async function createItem() {
+        await pb.collection("items").create({
+            name,
+            user: $currentUser?.id,
+        });
+        name = "";
     }
-
-    onMount(async () => {
-        await fetchItems();
-    });
 </script>
 
-{#if $loggedIn}
-    <div class="bg-black text-green-500 min-h-screen p-4">
-        {#if isLoading}
-            <p>Loading...</p>
-        {:else}
-            <h1 class="text-xl font-bold mb-4">Items</h1>
-            {#if items.length === 0}
-                <p>No items found</p>
-            {:else}
-                <table class="table-auto w-full">
-                    <thead>
-                        <tr class="border-b border-green-700">
-                            <th class="px-4 py-2">ID</th>
-                            <th class="px-4 py-2">Name</th>
-                            <th class="px-4 py-2">Count</th>
-                            <th class="px-4 py-2">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {#each items as item (item.id)}
-                            {#if editID === item.id}
-                                <tr class="border-b border-green-700">
-                                    <td class="px-4 py-2">{item.id}</td>
-                                    <td class="px-4 py-2">
-                                        <input
-                                            class="bg-black text-white"
-                                            bind:value={editName}
-                                        />
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input
-                                            type="number"
-                                            class="bg-black text-white"
-                                            bind:value={editCount}
-                                        />
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <button
-                                            class="bg-green-700 hover:bg-green-800 text-white font-bold py-1 px-2 rounded"
-                                            on:click={() => updateItem()}
-                                            >Save</button
-                                        >
-                                    </td>
-                                </tr>
-                            {:else}
-                                <tr class="border-b border-green-700">
-                                    <td class="px-4 py-2">{item.id}</td>
-                                    <td class="px-4 py-2">{item.name}</td>
-                                    <td class="px-4 py-2">{item.count}</td>
-                                    <td class="px-4 py-2 flex space-x-2">
-                                        <button
-                                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded"
-                                            on:click={() => editItem(item)}
-                                            >Edit</button
-                                        >
-                                        <button
-                                            class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
-                                            on:click={() => deleteItem(item.id)}
-                                            >Delete</button
-                                        >
-                                    </td>
-                                </tr>
-                            {/if}
-                        {/each}
-                    </tbody>
-                </table>
-            {/if}
-        {/if}
-        <form class="mt-4" on:submit|preventDefault={addItem}>
-            <input
-                class="bg-black text-white px-4 py-2 rounded"
-                placeholder="Enter name"
-                bind:value={name}
-            />
-            <button
-                type="submit"
-                class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-                >Add Item</button
-            >
-        </form>
-    </div>
-{/if}
-}
+<div class="bg-white shadow-md rounded-lg py-4 px-6 min-h-screen">
+    <h1 class="text-blue-600 text-xl font-bold mb-4">Items</h1>
+
+    <table class="table-auto w-full">
+        <thead class="bg-blue-100">
+            <tr>
+                <th class="px-4 py-2 border-b-2 border-blue-200">ID</th>
+                <th class="px-4 py-2 border-b-2 border-blue-200">Name</th>
+                <th class="px-4 py-2 border-b-2 border-blue-200">Count</th>
+                <th class="px-4 py-2 border-b-2 border-blue-200">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {#each items as item (item.id)}
+                <tr class="even:bg-blue-50">
+                    <td class="px-4 py-2 border-b border-blue-200">{item.id}</td
+                    >
+                    <td class="px-4 py-2 border-b border-blue-200"
+                        >{item.name}</td
+                    >
+                    <td class="px-4 py-2 border-b border-blue-200"
+                        >{item.count}</td
+                    >
+                    <td
+                        class="px-4 py-2 border-b border-blue-200 flex justify-start space-x-2"
+                    >
+                        <button
+                            class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+                            on:click={() => deleteItem(item.id)}>Delete</button
+                        >
+                    </td>
+                </tr>
+            {/each}
+        </tbody>
+    </table>
+
+    <form
+        class="mt-4 flex flex-col space-y-2"
+        on:submit|preventDefault={createItem}
+    >
+        <input
+            class="px-4 py-2 rounded border-2 border-blue-500"
+            placeholder="Enter name"
+            bind:value={name}
+        />
+        <button
+            type="submit"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >Create Item</button
+        >
+    </form>
+</div>

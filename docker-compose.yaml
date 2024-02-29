@@ -1,9 +1,16 @@
 services:
   ui:
     build:
-      context: .
+      context: ./
       dockerfile: Dockerfile
     environment:
-      - PUBLIC_API_URL=http://localhost:8080
+      - PUBLIC_POCKETBASE_URL=http://localhost:8080
     ports:
       - "3000:3000"
+
+  pocketbase:
+    build:
+      context: ./pocketbase
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
